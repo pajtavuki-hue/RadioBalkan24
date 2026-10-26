@@ -1,0 +1,40 @@
+name: Build RadioBalkan24 APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "RadioBalkan24_ANDROID_ISPRAVLJEN.zip"
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Extract Android project
+        run: |
+          unzip -o RadioBalkan24_ANDROID_ISPRAVLJEN.zip -d project
+          ls -la project
+
+      - name: Check Gradle project
+        run: |
+          find project -maxdepth 4 -type f
+          test -f project/settings.gradle || test -f project/settings.gradle.kts
+
+      - name: Build APK
+        working-directory: project
+        run: |
+          chmod +x gradlew 2>/dev/null || true
+          gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RadioBalkan24-APK
+          path: project/**/build/outputs/apk/debug/*.apk
