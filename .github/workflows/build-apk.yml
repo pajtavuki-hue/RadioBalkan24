@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Download repository
         uses: actions/checkout@v4
@@ -20,21 +21,24 @@ jobs:
       - name: Extract Android project
         run: |
           unzip -o RadioBalkan24_ANDROID_ISPRAVLJEN.zip -d project
-          ls -la project
+          find project -maxdepth 4 -type f
 
       - name: Check Gradle project
         run: |
-          find project -maxdepth 4 -type f
-          test -f project/settings.gradle || test -f project/settings.gradle.kts
+          test -f project/RadioBalkan24-Android/settings.gradle || test -f project/RadioBalkan24-Android/settings.gradle.kts
 
       - name: Build APK
-        working-directory: project
+        working-directory: project/RadioBalkan24-Android
         run: |
-          chmod +x gradlew 2>/dev/null || true
-          gradle assembleDebug
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug
+          else
+            gradle assembleDebug
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: RadioBalkan24-APK
-          path: project/**/build/outputs/apk/debug/*.apk
+          path: project/RadioBalkan24-Android/**/build/outputs/apk/debug/*.apk
