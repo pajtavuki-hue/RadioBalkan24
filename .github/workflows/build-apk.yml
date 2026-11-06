@@ -20,7 +20,7 @@ jobs:
 
       - name: Extract Android project
         run: |
-          unzip -o RadioBalkan24_ANDROID_ISPRAVLJEN.zip -d project
+         unzip -o RadioBalkan24_ANDROID_SVE_PROMJENE_UGRADENE-1.zip -d project
           find project -maxdepth 4 -type f
 
       - name: Check Gradle project
