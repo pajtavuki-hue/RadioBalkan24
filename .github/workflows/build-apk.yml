@@ -1,9 +1,6 @@
 name: Build RadioBalkan24 APK
-
-on:
-push:
-workflow_dispatch:
-
+ 
+on: [push, workflow_dispatch]
 permissions:
 contents: read
 
