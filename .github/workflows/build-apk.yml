@@ -1,11 +1,8 @@
 name: Build RadioBalkan24 APK
 
 on:
-  workflow_dispatch:
   push:
-    paths:
-      - "RadioBalkan24_ANDROID_ISPRAVLJEN.zip"
-      - ".github/workflows/build-apk.yml"
+  workflow_dispatch:
 
 jobs:
   build:
