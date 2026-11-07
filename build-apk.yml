@@ -12,43 +12,49 @@ permissions:
 
 jobs:
   build:
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Download repository
         uses: actions/checkout@v4
 
-      - name: Find and extract Android ZIP
+      - name: Find Android ZIP
         shell: bash
         run: |
           set -euo pipefail
-          ZIP_FILE="$(find . -maxdepth 4 -type f -iname 'RadioBalkan24*.zip' -not -path './.git/*' | head -n 1)"
-          if [ -z "$ZIP_FILE" ]; then
-            echo "Android ZIP nije pronađen u repozitoriju."
-            find . -maxdepth 4 -type f -print
-            exit 1
-          fi
-          echo "Pronađen ZIP: $ZIP_FILE"
-          mkdir -p project
-          unzip -o "$ZIP_FILE" -d project
 
-      - name: Locate Android project
+          ZIP_FILE=$(find . -maxdepth 4 -type f -iname "RadioBalkan24*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Android ZIP nije pronaden!"
+            exit 1
+          fi
+
+          echo "Pronađen ZIP: $ZIP_FILE"
+          echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
+
+      - name: Extract Android project
         shell: bash
         run: |
           set -euo pipefail
-          SETTINGS="$(find project -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)"
-          if [ -z "$SETTINGS" ]; then
-      
-            find project -maxdepth 5 -type f -print
+
+          mkdir -p "$RUNNER_TEMP/radio-project"
+          unzip -q "$ZIP_FILE" -d "$RUNNER_TEMP/radio-project"
+
+          PROJECT_DIR=$(find "$RUNNER_TEMP/radio-project" -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -print -quit | xargs -r dirname)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            PROJECT_DIR=$(find "$RUNNER_TEMP/radio-project" -type f \( -path "*/app/build.gradle" -o -path "*/app/build.gradle.kts" \) -print -quit | sed 's|/app/build.gradle.kts\?$||')
+          fi
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Android projekt nije pronađen!"
             exit 1
           fi
-          PROJECT_DIR="$(dirname "$SETTINGS")"
-          if [ ! -d "$PROJECT_DIR/app" ]; then
-            echo "app modul nije pronađen u: $PROJECT_DIR"
-            exit 1
-          fi
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
           echo "Android projekt: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -65,13 +71,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           cd "$PROJECT_DIR"
+
+          echo "Pokrećem izradu APK-a..."
           gradle --no-daemon --stacktrace assembleDebug
+
+          APK_FILE=$(find . -type f -path "*/build/outputs/apk/debug/*.apk" -print -quit)
+
+          if [ -z "$APK_FILE" ]; then
+            echo "APK nije pronađen nakon izrade!"
+            exit 1
+          fi
+
+          echo "APK_PATH=$PROJECT_DIR/$APK_FILE" >> "$GITHUB_ENV"
+          echo "APK uspješno izrađen!"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: RadioBalkan24-APK
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          path: ${{ env.APK_PATH }}
           if-no-files-found: error
           retention-days: 14
