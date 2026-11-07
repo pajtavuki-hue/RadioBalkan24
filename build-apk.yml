@@ -1,0 +1,77 @@
+name: Build RadioBalkan24 APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download repository
+        uses: actions/checkout@v4
+
+      - name: Find and extract Android ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP_FILE="$(find . -maxdepth 4 -type f -iname 'RadioBalkan24*.zip' -not -path './.git/*' | head -n 1)"
+          if [ -z "$ZIP_FILE" ]; then
+            echo "Android ZIP nije pronađen u repozitoriju."
+            find . -maxdepth 4 -type f -print
+            exit 1
+          fi
+          echo "Pronađen ZIP: $ZIP_FILE"
+          mkdir -p project
+          unzip -o "$ZIP_FILE" -d project
+
+      - name: Locate Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+          SETTINGS="$(find project -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)"
+          if [ -z "$SETTINGS" ]; then
+            echo "settings.gradle nije pronađen."
+            find project -maxdepth 5 -type f -print
+            exit 1
+          fi
+          PROJECT_DIR="$(dirname "$SETTINGS")"
+          if [ ! -d "$PROJECT_DIR/app" ]; then
+            echo "app modul nije pronađen u: $PROJECT_DIR"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Android projekt: $PROJECT_DIR"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$PROJECT_DIR"
+          gradle --no-daemon --stacktrace assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RadioBalkan24-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
